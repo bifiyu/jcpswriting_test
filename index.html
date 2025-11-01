@@ -300,13 +300,14 @@
             params.set('generate_example_essay', 'true');
         }
 
-        // *** 關鍵改變：將 API Key 編碼後放入 URL Hash (#) ***
-        const urlParams = params.toString();
-        // 使用 encodeURIComponent 確保 Key 中的特殊符號能正確傳輸
-        const hashKey = `#apikey=${encodeURIComponent(apiKey)}`;
+        // *** 關鍵新增：將 API Key 加入 Query 參數 (Q&A 關鍵修正) ***
+        params.set('apikey', apiKey);
 
+        // *** 關鍵改變：將 API Key 編碼後放入 URL Hash (#) ***
+        const urlParams = params.toString();// const hashKey =
+        
         // 將用戶導向學生頁面，Key 放在 Hash 區
-        window.location.href = `student_tool.html?${urlParams}${hashKey}`;
+        window.location.href =`student_tool.html?${urlParams}`;
     });
 </script>
 </body>

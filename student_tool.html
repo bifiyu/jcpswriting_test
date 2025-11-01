@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 作文輔助工具</title>
+    <title>AI 作文引導單</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- 引入 PDF.js -->
@@ -358,23 +358,40 @@
                 { border: 'rgb(54, 162, 235)', bg: 'rgba(54, 162, 235, 0.2)' }  // Blue
             ];
             
-            function initializeApiKeyFromHash() {
-                const hash = window.location.hash.substring(1); // 取得 # 後面的內容
-                const hashParams = new URLSearchParams(hash);
-                const keyFromHash = hashParams.get('apikey');
+            function initializeApiKey() {
+                const params = new URLSearchParams(window.location.search);
+                const queryKey = params.get('apikey'); // 嘗試從 Query 參數 (?) 讀取 Key
+                let apiKey = sessionStorage.getItem('geminiApiKey'); // 永遠先嘗試從 Session Storage 繼承
 
-                if (keyFromHash) {
-                    // 如果從 Hash 取得 Key，存入 sessionStorage (供後續會話使用)
-                    sessionStorage.setItem('geminiApiKey', keyFromHash);
-            
-                    // 清除 URL 中的 Hash 部分 (關鍵步驟)，避免 Key 長時間顯示
-                    // 使用 replaceState 避免觸發頁面重新載入
-                    window.history.replaceState(null, null, window.location.pathname + window.location.search);
-            
-                    return keyFromHash;
+                // 1. 如果從 Query 讀到 Key (代表是老師分享的連結)
+                if (queryKey) {
+                    apiKey = queryKey;
+                    // 儲存到 SessionStorage，以便學生在當次會話中重新整理頁面
+                    sessionStorage.setItem('geminiApiKey', apiKey); 
+        
+                    // *** 關鍵步驟：從 URL 中移除 API Key 參數 ***
+                    params.delete('apikey');
+        
+                    // 使用 replaceState 覆蓋瀏覽器歷史紀錄，防止 Key 被記錄
+                    const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '') + window.location.hash;
+                    window.history.replaceState(null, null, newUrl);
+
+                } else if (window.location.hash) {
+                    // 2. 容錯機制: 如果 Query 沒有，檢查 Hash (舊的 Hash 機制)
+                    const hash = window.location.hash.substring(1);
+                    const hashParams = new URLSearchParams(hash);
+                    const hashKey = hashParams.get('apikey');
+        
+                    if (hashKey) {
+                        apiKey = hashKey;
+                        sessionStorage.setItem('geminiApiKey', apiKey);
+                        // 清除 Hash 部分
+                        window.history.replaceState(null, null, window.location.pathname + window.location.search);
+                    }
                 }
-                // 如果 Hash 中沒有，就從 sessionStorage 讀取（繼承會話）
-                return sessionStorage.getItem('geminiApiKey');
+    
+                // 3. 確保回傳值
+                return apiKey;
             }
 
             const loadingOverlay = document.getElementById('loading-overlay');
@@ -407,7 +424,7 @@
                 conjunctions: params.get('conjunctions')?.split(',').filter(Boolean) || [],
                 rhetoric: params.get('rhetoric')?.split(',').filter(Boolean) || []
             };
-            const apiKey = initializeApiKeyFromHash(); // 從 Hash 或 sessionStorage 獲取 Key
+            const apiKey = initializeApiKey(); // <-- 這裡呼叫新函式
 
             if (!apiKey) {
                 document.body.innerHTML = '<h1 class="text-red-500 text-center text-xl p-8">❌ 錯誤：缺少 API Key。請返回上一頁重新設定。</h1>';
@@ -1113,7 +1130,7 @@ ${scoreComparisonTask}
 
                 const filename = `${seatNumber}_${config.title}_寫作歷程及評分.txt`;
 
-                let content = "作文引導單\n";
+                let content = "寫作歷程及評分\n";
                 content += "========================================\n\n";
 
                 // 1. 作文題目與設定
@@ -1610,9 +1627,9 @@ ${scoreComparisonTask}
                     return;
                 }
     
-                // (可選) 沿用舊的短內容檢查，建議至少 50 字才進行全文評分
+                // (可選) 沿用舊的短內容檢查，建議至少 100 字才進行全文評分
                 if (trimmedFullText.length < 50) { 
-                    feedbackElement.innerHTML = "<p style='color: #dc2626; font-weight: bold;'>⚠️ 老師提醒你：全文內容總字數不足 50 字，無法進行專業批改，請繼續努力喔！</p>";
+                    feedbackElement.innerHTML = "<p style='color: #dc2626; font-weight: bold;'>⚠️ 老師提醒你：全文內容總字數不足 100 字，無法進行專業批改，請繼續努力喔！</p>";
                     return;
                 }
 
@@ -1746,7 +1763,6 @@ ${scoreComparisonTask}
                     }
                 }
             }
-
 
             initializeApp();
         });
